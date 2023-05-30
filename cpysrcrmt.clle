@@ -1,0 +1,86 @@
+ CPYRMTSRC:  PGM        PARM(&FROMSRC &TOSRC &FROMMBR &TOMBR &MBROPT +
+                          &SRCTYPE &SRCTEXT)
+             DCL        VAR(&FROMSRC) TYPE(*CHAR) LEN(86)
+             DCL        VAR(&FROMFILE) TYPE(*CHAR) STG(*DEFINED) +
+                          LEN(10) DEFVAR(&FROMSRC 3)
+             DCL        VAR(&FROMLIB) TYPE(*CHAR) STG(*DEFINED) +
+                          LEN(10) DEFVAR(&FROMSRC 13)
+             DCL        VAR(&FROMSYS) TYPE(*CHAR) STG(*DEFINED) +
+                          LEN(64) DEFVAR(&FROMSRC 23)
+             DCL        VAR(&TOSRC) TYPE(*CHAR) LEN(86)
+             DCL        VAR(&TOFILE) TYPE(*CHAR) STG(*DEFINED) +
+                          LEN(10) DEFVAR(&TOSRC 3)
+             DCL        VAR(&TOLIB) TYPE(*CHAR) STG(*DEFINED) +
+                          LEN(10) DEFVAR(&TOSRC 13)
+             DCL        VAR(&TOSYS) TYPE(*CHAR) STG(*DEFINED) +
+                          LEN(64) DEFVAR(&TOSRC 23)
+             DCL        VAR(&FROMMBR) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&TOMBR) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&MBROPT) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&SRCTYPE) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&SRCTEXT) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&VERREL) TYPE(*INT) LEN(4)
+             DCL        VAR(&PLATFORM) TYPE(*INT) LEN(4)
+             DCL        VAR(&FC) TYPE(*CHAR) LEN(12)
+             DCL        VAR(&CPYSRC) TYPE(*CHAR) LEN(512)
+             DCL        VAR(&LEN) TYPE(*DEC) LEN(5 0)
+             DCL        VAR(&CMDLEN) TYPE(*DEC) LEN(15 5)
+             MONMSG     MSGID(CPF0000) EXEC(GOTO ENDPGM)
+
+             IF (&TOFILE *EQ '*FROMSRC') THEN(DO)
+                CHGVAR     VAR(&TOFILE) VALUE(&FROMFILE)
+             ENDDO
+             IF ((&TOLIB *EQ ' ') *OR (&TOLIB *EQ '*FROMLIB')) THEN(DO)
+                CHGVAR     VAR(&TOLIB) VALUE(&FROMLIB)
+             ENDDO
+
+             DLTF       FILE(QTEMP/COZDDMTO)
+             MONMSG     MSGID(CPF0000)
+             DLTF       FILE(QTEMP/COZDDMFROM)
+             MONMSG     MSGID(CPF0000)
+
+             IF (&TOSYS *NE '*LOCAL') THEN(DO)
+                CRTDDMF    FILE(QTEMP/COZDDMTO) RMTFILE(&TOLIB/&TOFILE) +
+                             RMTLOCNAME(&TOSYS *IP)
+                CHGVAR     VAR(&TOLIB) VALUE('QTEMP')
+                CHGVAR     VAR(&TOFILE) VALUE('COZDDMTO')
+             ENDDO
+             IF (&FROMSYS *NE '*LOCAL') THEN(DO)
+               CRTDDMF    FILE(QTEMP/COZDDMFROM) +
+                           RMTFILE(&FROMLIB/&FROMFILE) +
+                           RMTLOCNAME(&FROMSYS *IP)
+               CHGVAR     VAR(&FROMLIB) VALUE('QTEMP')
+               CHGVAR     VAR(&FROMFILE) VALUE('COZDDMFROM')
+             ENDDO
+
+             CHGVAR     VAR(&FC) VALUE(X'000000000000000000000000')
+             CALLPRC    PRC('CEEGPID') PARM((&VERREL) (&PLATFORM) +
+                          (&FC))
+             IF (&VERREL *GE 0610) THEN(DO) /* On v6.1 or later? */
+               chgvar var(&cpysrc) VALUE('CPYSRCF ' +
+                   *BCAT 'FROMFILE(' *CAT &FROMLIB *TCAT '/' *CAT &FROMFILE *TCAT ')' +
+                   *BCAT 'TOFILE(' *CAT &TOLIB *TCAT '/' *CAT &TOFILE *TCAT ') ' +
+                   *BCAT 'FROMMBR(' *CAT &FROMMBR *TCAT ')' *BCAT 'TOMBR(' *CAT &TOMBR *TCAT ')' +
+                   *BCAT 'MBROPT(' *CAT &MBROPT *TCAT ')' +
+                   *BCAT 'TEXT(' *CAT &SRCTEXT *TCAT ')' +
+                   *BCAT 'SRCTYPE(' *CAT &SRCTYPE *TCAT ')')
+             ENDDO
+             ELSE  DO
+             chgvar var(&cpysrc) VALUE('CPYSRCF ' +
+                   *BCAT 'FROMFILE(' *CAT &FROMLIB *TCAT '/' *CAT &FROMFILE *TCAT ')' +
+                   *BCAT 'TOFILE(' *CAT &TOLIB *TCAT '/' *CAT &TOFILE *TCAT ') ' +
+                   *BCAT 'FROMMBR(' *CAT &FROMMBR *TCAT ')' *BCAT 'TOMBR(' *CAT &TOMBR *TCAT ')' +
+                   *BCAT 'MBROPT(' *CAT &MBROPT *TCAT ')')
+             ENDDO
+             RTVMSG     MSGID(CPF9897) MSGF(QCPFMSG) MSGDTA(&CPYSRC) +
+                          MSGLEN(&LEN)
+             CHGVAR     VAR(&CMDLEN) VALUE(&LEN)
+             IF (&LEN > 1) THEN(DO)
+               SNDPGMMSG  MSGID(CPF9897) MSGF(QCPFMSG) +
+                            MSGDTA(%SST(&CPYSRC 1 &LEN))
+               CALL       PGM(QCMDEXC) PARM(&CPYSRC &CMDLEN)
+             ENDDO
+
+             DLTF       FILE(QTEMP/COZDDMTO)
+             DLTF       FILE(QTEMP/COZDDMFROM)
+ ENDPGM:     ENDPGM
