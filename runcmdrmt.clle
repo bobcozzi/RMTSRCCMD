@@ -1,0 +1,19 @@
+ RUNCMDRMT:  PGM        PARM(&CMD &RMT)
+             DCL        VAR(&CMD) TYPE(*CHAR) LEN(2000)
+             DCL        VAR(&UCMD) TYPE(*CHAR) LEN(2000)
+             DCL        VAR(&RMT) TYPE(*CHAR) LEN(64)
+             MONMSG     MSGID(CPF0000)
+
+            /* Bail Out if PWDDWNSYS is detected  */
+             CHGVAR     VAR(&UCMD) VALUE(%UPPER(&CMD))
+             IF (%SCAN('PWRDWN' &UCMD) = 0) THEN(DO)
+            /* Create a DDMF connected to the remote site in QTEMP  */
+             CRTDDMF    FILE(QTEMP/QRUNCMDTMP) +
+                          RMTFILE(SYSIBM/SYSDUMMY1) RMTLOCNAME(&RMT +
+                          *IP) TEXT('Remote Command DDMF use only')
+            /* Run the Command on the remote partition/system  */
+             SBMRMTCMD  CMD(&CMD) DDMFILE(QTEMP/QRUNCMDTMP)
+            /* Delete the DDMF from QTEMP  */
+             DLTF       FILE(QTEMP/QRUNCMDTMP)
+             ENDDO
+ ENDPGM:     ENDPGM
